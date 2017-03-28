@@ -9,7 +9,8 @@ library("dplyr")
 library("lazyeval")
 
 # Read the csv into a dataframe
-df <- read.csv(file="C://Users/Dane/Documents/GitHub/seis736_ml_project/data/raw/cs-training.csv")
+#df <- read.csv(file="C://Users/Dane/Documents/GitHub/seis736_ml_project/data/raw/cs-training.csv")
+df <- read.csv(file="C://Users/g557428/Projects/seis736_ml_project/data/raw/cs-training.csv")
 
 # Remove the row counter
 df <- df[,-1]
