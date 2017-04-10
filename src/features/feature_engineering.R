@@ -37,56 +37,48 @@ find_majority <- function(x) {
   return(c(q[1],q[3]))
 }
 
+###################################################################
+# Doing some basic data viz
+###################################################################
+library("ggplot2")
+
+df.sum <- df %>% group_by(SeriousDlqin2yrs) %>% summarize(obs = n() / 1000)
+
+ggplot(data=df.sum, aes(x=as.factor(SeriousDlqin2yrs), y=obs)) +
+  geom_bar(stat="identity", fill="steelblue", width=0.5) +
+  geom_text(aes(label=obs), vjust=1.6, color="white", size=3.5)+
+  theme_minimal()
+
+
 ##################################################################
 # Num Times 30-59 days past due but not worse w/in 2 years
 ##################################################################
 
+# Summarize
 do_summary(df, "NumberOfTime30.59DaysPastDueNotWorse")
 do_summary(subset(df, NumberOfTime30.59DaysPastDueNotWorse<96), "NumberOfTime30.59DaysPastDueNotWorse")
 
-# Counts in the 90s are likely "NA" values. Let's create a single NA value
+# Counts in the 90s are likely "NA" values. Set these to 0
 df$NumberOfTime30.59DaysPastDueNotWorse <- ifelse(df$NumberOfTime30.59DaysPastDueNotWorse > 90, 
-                                                  -1, 
+                                                  0, 
                                                   df$NumberOfTime30.59DaysPastDueNotWorse)
 
-#df.sub <- subset(df, NumberOfTime30.59DaysPastDueNotWorse != -1)
+# Visualize the distribution
+summary(df$NumberOfTime30.59DaysPastDueNotWorse)
+plot(density(df$NumberOfTime30.59DaysPastDueNotWorse))
+boxplot(df$NumberOfTime30.59DaysPastDueNotWorse ~ df$SeriousDlqin2yrs, outline=FALSE)
 
-# Do kmeans clustering on the combined features
-#km1 <- kmeans(x=df.sub[,4], 
-#              centers=3,
-#              iter.max=50,
-#              nstart=25)
-
-# Look at the distributions
-#table(km1$cluster, df.sub$SeriousDlqin2yrs)
-#prop.table(table(km1$cluster, df.sub$SeriousDlqin2yrs), 2)*100
-
-# Convert the clusters to dataframe and merge with the existing dataframe
-#df.sub <- cbind(df.sub, data.frame(km1$cluster))
-#colnames(df.sub)[12] <- "Grp30.59DaysDlq"
-
-#boxplot(df.sub$NumberOfTime30.59DaysPastDueNotWorse ~ df.sub$Grp30.59DaysDlq)
-
-#df.sub %>% group_by(Grp30.59DaysDlq) %>% summarize(min=min(NumberOfTime30.59DaysPastDueNotWorse),
-#                                                   max=max(NumberOfTime30.59DaysPastDueNotWorse),
-#                                                   median=median(NumberOfTime30.59DaysPastDueNotWorse),
-#                                                   mean=mean(NumberOfTime30.59DaysPastDueNotWorse),
-#                                                   n=n(),
-#                                                   na=sum(is.na(NumberOfTime30.59DaysPastDueNotWorse)))
-
-# Creating the buckets based on the kmeans clustering
-# These are the cutoffs we'll use for future data as well
-df$PD30.59Bucket <- case_when(df$NumberOfTime30.59DaysPastDueNotWorse < 0 ~ "UN",
-                              df$NumberOfTime30.59DaysPastDueNotWorse == 0 ~ "0",
-                              df$NumberOfTime30.59DaysPastDueNotWorse <= 3 ~ "1-3",
+# Creating buckets
+df$PD30.59Bucket <- case_when(df$NumberOfTime30.59DaysPastDueNotWorse == 0 ~ "0",
+                              df$NumberOfTime30.59DaysPastDueNotWorse == 1 ~ "1",
+                              df$NumberOfTime30.59DaysPastDueNotWorse == 2 ~ "2",
+                              df$NumberOfTime30.59DaysPastDueNotWorse == 3 ~ "3",
                               df$NumberOfTime30.59DaysPastDueNotWorse > 3 ~ "4+"
                               )
 
-df$PD30.59Bucket <- as.factor(df$PD30.59Bucket)
-
+# Distribution of the past due bucket
 table(df$PD30.59Bucket)
-
-#rm(df.sub, km1)
+sum(is.na(df$PD30.59Bucket))
 
 ##################################################################
 # Num Times 60-89 days past due but not worse w/in 2 years
@@ -95,44 +87,26 @@ table(df$PD30.59Bucket)
 do_summary(df, "NumberOfTime60.89DaysPastDueNotWorse")
 do_summary(subset(df, NumberOfTime60.89DaysPastDueNotWorse<96), "NumberOfTime60.89DaysPastDueNotWorse")
 
-# Counts in the 90s are likely "NA" values. Let's create a single NA value
+# Counts in the 90s are likely "NA" values. Set these to 0
 df$NumberOfTime60.89DaysPastDueNotWorse <- ifelse(df$NumberOfTime60.89DaysPastDueNotWorse > 90, 
-                                                  -1, 
+                                                  0, 
                                                   df$NumberOfTime60.89DaysPastDueNotWorse)
 
-#df.sub <- subset(df, NumberOfTime60.89DaysPastDueNotWorse != -1)
+# Visualize the distribution
+summary(df$NumberOfTime60.89DaysPastDueNotWorse)
+plot(density(df$NumberOfTime60.89DaysPastDueNotWorse))
+plot(density(subset(df, SeriousDlqin2yrs==1, select=c(NumberOfTime60.89DaysPastDueNotWorse))[,1]))
+boxplot(df$NumberOfTime60.89DaysPastDueNotWorse ~ df$SeriousDlqin2yrs, outline=FALSE)
 
-# Do kmeans clustering on the combined features
-#km1 <- kmeans(x=df.sub[,10], 
-#              centers=3,
-#              iter.max=50,
-#              nstart=25)
-
-# Convert the clusters to dataframe and merge with the existing dataframe
-#df.sub <- cbind(df.sub, data.frame(km1$cluster))
-#colnames(df.sub)[13] <- "Grp60.89DaysDlq"
-
-#boxplot(df.sub$NumberOfTime60.89DaysPastDueNotWorse ~ df.sub$Grp60.89DaysDlq)
-
-#df.sub %>% group_by(Grp60.89DaysDlq) %>% summarize(min=min(NumberOfTime60.89DaysPastDueNotWorse),
-#                                                   max=max(NumberOfTime60.89DaysPastDueNotWorse),
-#                                                   median=median(NumberOfTime60.89DaysPastDueNotWorse),
-#                                                   mean=mean(NumberOfTime60.89DaysPastDueNotWorse),
-#                                                   n=n(),
-#                                                   na=sum(is.na(NumberOfTime60.89DaysPastDueNotWorse)))
-
-# Creating the buckets based on the kmeans clustering
-# These are the cutoffs we'll use for future data as well
-df$PD60.89Bucket <- case_when(df$NumberOfTime60.89DaysPastDueNotWorse < 0 ~ "UN",
-                              df$NumberOfTime60.89DaysPastDueNotWorse == 0 ~ "0",
-                              df$NumberOfTime60.89DaysPastDueNotWorse <= 3 ~ "1-3",
+# Creating buckets. the 90+ bucket are the unknowns
+df$PD60.89Bucket <- case_when(df$NumberOfTime60.89DaysPastDueNotWorse == 0 ~ "0",
+                              df$NumberOfTime60.89DaysPastDueNotWorse == 1 ~ "1",
+                              df$NumberOfTime60.89DaysPastDueNotWorse == 2 ~ "2",
+                              df$NumberOfTime60.89DaysPastDueNotWorse == 3 ~ "3",
                               df$NumberOfTime60.89DaysPastDueNotWorse > 3 ~ "4+")
 
-df$PD60.89Bucket <- as.factor(df$PD60.89Bucket)
-
-prop.table(table(df$PD60.89Bucket, df$SeriousDlqin2yrs),2)
-
-#rm(df.sub, km1)
+# Show the distribution
+prop.table(table(df$PD60.89Bucket))
 
 ##################################################################
 # Num Times 90+ days past due
@@ -141,100 +115,59 @@ prop.table(table(df$PD60.89Bucket, df$SeriousDlqin2yrs),2)
 do_summary(df, "NumberOfTimes90DaysLate")
 do_summary(subset(df, NumberOfTimes90DaysLate<96), "NumberOfTimes90DaysLate")
 
-# Counts in the 90s are likely "NA" values. Let's create a single NA value
+# Counts in the 90s are likely "NA" values. Set these to 0
 df$NumberOfTimes90DaysLate <- ifelse(df$NumberOfTimes90DaysLate > 90, 
-                                     -1, 
+                                     0, 
                                      df$NumberOfTimes90DaysLate)
 
-#df.sub <- subset(df, NumberOfTimes90DaysLate != -1)
+# Visualize the distribution
+summary(df$NumberOfTimes90DaysLate)
+plot(density(df$NumberOfTimes90DaysLate))
+plot(density(subset(df, SeriousDlqin2yrs==1, select=c(NumberOfTimes90DaysLate))[,1]))
+boxplot(df$NumberOfTimes90DaysLate ~ df$SeriousDlqin2yrs, outline=FALSE)
 
-# Do kmeans clustering on the combined features
-#km1 <- kmeans(x=df.sub[,8], 
-#              centers=3,
-#              iter.max=50,
-#              nstart=25)
+# Creating buckets. the 90+ bucket are the unknowns
+df$PD90Bucket <- case_when(df$NumberOfTimes90DaysLate == 0 ~ "0",
+                           df$NumberOfTimes90DaysLate == 1 ~ "1",
+                           df$NumberOfTimes90DaysLate == 2 ~ "2",
+                           df$NumberOfTimes90DaysLate == 3 ~ "3",
+                           df$NumberOfTimes90DaysLate == 4 ~ "4",
+                           df$NumberOfTimes90DaysLate > 4 ~ "5+")
 
-# Convert the clusters to dataframe and merge with the existing dataframe
-#df.sub <- cbind(df.sub, data.frame(km1$cluster))
-#colnames(df.sub)[14] <- "Grp90DaysDlq"
-
-#boxplot(df.sub$NumberOfTimes90DaysLate ~ df.sub$Grp90DaysDlq, outline=FALSE)
-
-#df.sub %>% group_by(Grp90DaysDlq) %>% summarize(min=min(NumberOfTimes90DaysLate),
-#                                                max=max(NumberOfTimes90DaysLate),
-#                                                median=median(NumberOfTimes90DaysLate),
-#                                                mean=mean(NumberOfTimes90DaysLate),
-#                                                n=n(),
-#                                                na=sum(is.na(NumberOfTimes90DaysLate)))
-
-# Creating the buckets based on the kmeans clustering
-# These are the cutoffs we'll use for future data as well
-df$PD90Bucket <- case_when(df$NumberOfTimes90DaysLate < 0 ~ "UN",
-                           df$NumberOfTimes90DaysLate == 0 ~ "0",
-                           df$NumberOfTimes90DaysLate <= 3 ~ "1-3",
-                           df$NumberOfTimes90DaysLate > 3 ~ "4+")
-
-df$PD90Bucket <- as.factor(df$PD90Bucket)
-
-#rm(df.sub, km1)
+# Show the distribution
+prop.table(table(df$PD90Bucket))
 
 ##################################################################
 # Total times past due
 ##################################################################
 
-# Only sum if the value isn't an NA
-df$TotalPastDue <- ifelse(df$NumberOfTime30.59DaysPastDueNotWorse < 0, 0, df$NumberOfTime30.59DaysPastDueNotWorse) +
-                   ifelse(df$NumberOfTime60.89DaysPastDueNotWorse < 0, 0, df$NumberOfTime60.89DaysPastDueNotWorse) +
-                   ifelse(df$NumberOfTimes90DaysLate < 0, 0, df$NumberOfTimes90DaysLate)
+# Creating a total number of times past due feature
+df$TotalPastDue <- df$NumberOfTime30.59DaysPastDueNotWorse +
+                   df$NumberOfTime60.89DaysPastDueNotWorse +
+                   df$NumberOfTimes90DaysLate
 
 # Summarize
 do_summary(df, "TotalPastDue")
 
-##################################################################
-# Past Due Type
-##################################################################
+# Visualize the distribution
+summary(df$TotalPastDue)
+plot(density(df$TotalPastDue))
+plot(density(subset(df, SeriousDlqin2yrs==1, select=c(TotalPastDue))[,1]))
+boxplot(df$TotalPastDue ~ df$SeriousDlqin2yrs, outline=FALSE)
 
-# Do kmeans clustering on the combined features
-#km1 <- kmeans(x=df[,15], 
-#              centers=4,
-#              iter.max=50,
-#              nstart=25)
-
-# Look at the distributions
-#table(km1$cluster, df$SeriousDlqin2yrs)
-#prop.table(table(km1$cluster, df$SeriousDlqin2yrs), 2)*100
-
-#summary(km1$cluster)
-
-# Convert the clusters to dataframe and merge with the existing dataframe
-#df <- cbind(df, data.frame(km1$cluster))
-#colnames(df)[16] <- "PastDueBucket"
-
-# Initial plotting of past due groups shows there is some potentially bad data. 
-# It is a small portion of the population so go ahead and remove these
-#boxplot(df$TotalPastDue ~ df$PastDueBucket)
-
-
-#df %>% group_by(PastDueBucket) %>% summarize(min=min(TotalPastDue),
-#                                             max=max(TotalPastDue),
-#                                             median=median(TotalPastDue),
-#                                             mean=mean(TotalPastDue),
-#                                             n=n(),
-#                                             na=sum(is.na(TotalPastDue)))
-
-# Creating the buckets based on the kmeans clustering
-# These are the cutoffs we'll use for future data as well
+# Bucketing the total past due feature
 df$PastDueBucket <- case_when(df$TotalPastDue == 0 ~ "0",
-                              df$TotalPastDue <= 3 ~ "1-3",
-                              df$TotalPastDue <= 7 ~ "4-7",
+                              df$TotalPastDue == 1 ~ "1",
+                              df$TotalPastDue == 2 ~ "2",
+                              df$TotalPastDue == 3 ~ "3",
+                              df$TotalPastDue == 4 ~ "4",
+                              df$TotalPastDue == 5 ~ "5",
+                              df$TotalPastDue == 6 ~ "6",
+                              df$TotalPastDue == 7 ~ "7",
                               df$TotalPastDue > 7 ~ "8+")
 
-# Converting to dummy variable
-df$PastDueBucket <- as.factor(df$PastDueBucket)
-
 # View the distributions
-prop.table(table(df$PastDueBucket, df$SeriousDlqin2yrs),2)
-
+prop.table(table(df$PastDueBucket))
 
 ##################################################################
 # Number of Dependents
@@ -246,65 +179,21 @@ summary(df$NumberOfDependents)
 # For now lets just use the median value
 df$NumberOfDependents <- ifelse(is.na(df$NumberOfDependents), 0, df$NumberOfDependents)
 
-# Do kmeans clustering on the combined features
-#km1 <- kmeans(x=df[,11], 
-#              centers=3,
-#              iter.max=50,
-#              nstart=25)
+# Visualize the distribution
+summary(df$NumberOfDependents)
+plot(density(df$NumberOfDependents))
+plot(density(subset(df, SeriousDlqin2yrs==1, select=c(NumberOfDependents))[,1]))
 
-# Look at the distributions
-#table(km1$cluster, df$SeriousDlqin2yrs)
-#prop.table(table(km1$cluster, df$SeriousDlqin2yrs), 2)*100
-
-# Convert the clusters to dataframe and merge with the existing dataframe
-#df <- cbind(df, data.frame(km1$cluster))
-#colnames(df)[17] <- "DependentsBucket"
-
-#boxplot(df$NumberOfDependents ~ df$DependentsBucket, outline=FALSE)
-
-#df %>% group_by(DependentsBucket) %>% summarize(min=min(NumberOfDependents),
-#                                            max=max(NumberOfDependents),
-#                                            median=median(NumberOfDependents),
-#                                            mean=mean(NumberOfDependents),
-#                                            n=n(),
-#                                            na=sum(is.na(NumberOfDependents)))
-
-# Creating the buckets based on the kmeans clustering
-# These are the cutoffs we'll use for future data as well
+# Bucketing the dependents
 df$DependentsBucket <- case_when(df$NumberOfDependents == 0 ~ "0",
                                  df$NumberOfDependents == 1 ~ "1",
-                                 df$NumberOfDependents == 2 ~ "2-3",
-                                 df$NumberOfDependents == 3 ~ "2-3",
-                                 df$NumberOfDependents > 3 ~ "4+")
+                                 df$NumberOfDependents == 2 ~ "2",
+                                 df$NumberOfDependents == 3 ~ "3",
+                                 df$NumberOfDependents == 4 ~ "4",
+                                 df$NumberOfDependents > 4 ~ "5+")
 
-df$DependentsBucket <- as.factor(df$DependentsBucket)
-
-
-##################################################################
-# Income
-##################################################################
-
-do_summary(df, "MonthlyIncome")
-
-# Get median income value
-med <- median(subset(df, is.na(MonthlyIncome)==FALSE, select=c(MonthlyIncome))[,1])
-
-# Replace N/As with the median income value
-df$MonthlyIncome <- ifelse(is.na(df$MonthlyIncome), med, df$MonthlyIncome)
-
-# Creating logical income buckets
-df$IncomeBucket <- case_when(df$MonthlyIncome < 1000 ~ "<1000",
-                             df$MonthlyIncome < 2000 ~ "1000-1999",
-                             df$MonthlyIncome < 4000 ~ "2000-3999",
-                             df$MonthlyIncome < 8000 ~ "4000-7999",
-                             df$MonthlyIncome < 16000 ~ "8000-15999",
-                             df$MonthlyIncome < 32000 ~ "16000-31999",
-                             df$MonthlyIncome < 64000 ~ "32000-63999",
-                             df$MonthlyIncome >= 64000 ~ "64000+")
-
-df$IncomeBucket <- as.factor(df$IncomeBucket)
-
-boxplot(df$MonthlyIncome ~ df$IncomeBucket, outline=FALSE)
+# View the distributions
+prop.table(table(df$DependentsBucket))
 
 ##################################################################
 # Debt Ratio
@@ -314,10 +203,16 @@ boxplot(df$MonthlyIncome ~ df$IncomeBucket, outline=FALSE)
 do_summary(df, "DebtRatio")
 summary(df$DebtRatio)
 
-# Cap it at 100%
-df$DebtRatio <- ifelse(df$DebtRatio > 1.0, 1.0, df$DebtRatio)
+# Outliers are 1.5x the IQR
+ol <- find_outliers(df$DebtRatio)[2]
 
-boxplot(df$DebtRatio ~ df$SeriousDlqin2yrs)
+# Anything above the outliers threshold - just set to the threshold
+df$DebtRatio <- ifelse(df$DebtRatio > ol, ol, df$DebtRatio)
+
+# Visualize the debt ratio
+boxplot(df$DebtRatio ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$DebtRatio))
+plot(density(subset(df, SeriousDlqin2yrs==1, select=c(DebtRatio))[,1]))
 
 ##################################################################
 # Revolving Utilization
@@ -326,12 +221,18 @@ boxplot(df$DebtRatio ~ df$SeriousDlqin2yrs)
 # This is supposed to be a percentage, but there are some outrageous values
 do_summary(df, "RevolvingUtilizationOfUnsecuredLines")
 
-# Cap it at 100%
-df$RevolvingUtilizationOfUnsecuredLines <- ifelse(df$RevolvingUtilizationOfUnsecuredLines > 1.0, 
-                                                  1.0, 
+# Outliers are 1.5x the IQR
+ol <- find_outliers(df$RevolvingUtilizationOfUnsecuredLines)[2]
+
+# Anything above the outliers threshold - just set to the threshold
+df$RevolvingUtilizationOfUnsecuredLines <- ifelse(df$RevolvingUtilizationOfUnsecuredLines > ol, 
+                                                  ol, 
                                                   df$RevolvingUtilizationOfUnsecuredLines)
 
+# Visualize 
 boxplot(df$RevolvingUtilizationOfUnsecuredLines ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$RevolvingUtilizationOfUnsecuredLines))
+plot(density(subset(df, SeriousDlqin2yrs==1, select=c(RevolvingUtilizationOfUnsecuredLines))[,1]))
 
 ##################################################################
 # Serious Delinquency Ever
@@ -340,8 +241,6 @@ boxplot(df$RevolvingUtilizationOfUnsecuredLines ~ df$SeriousDlqin2yrs, outline=F
 # Did the customer ever have a serious delinquency - 90 or more days delinquent
 df$SeriousDlqFlag <- ifelse(df$NumberOfTimes90DaysLate > 0, 1, 0)
 
-df$SeriousDlqFlag <- as.factor(df$SeriousDlqFlag)
-
 table(df$SeriousDlqFlag, df$SeriousDlqin2yrs)
 prop.table(table(df$SeriousDlqFlag, df$SeriousDlqin2yrs),2)
 
@@ -349,48 +248,88 @@ prop.table(table(df$SeriousDlqFlag, df$SeriousDlqin2yrs),2)
 # Risk Index = Utilization by Debt Ratio + weighted delinquency
 ##################################################################
 
-df$RiskIndex <- (df$DebtRatio * df$RevolvingUtilizationOfUnsecuredLines) + (df$TotalPastDue/2)
+df$RiskIndex <- (df$DebtRatio * df$RevolvingUtilizationOfUnsecuredLines) + (df$TotalPastDue / 2)
+df$RiskIndex <- (df$RiskIndex - min(df$RiskIndex)) / (max(df$RiskIndex) - min(df$RiskIndex))
 
 summary(df$RiskIndex)
 do_summary(df, "RiskIndex")
 
+# Visualize
 boxplot(df$RiskIndex ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$RiskIndex))
+plot(density(subset(df, SeriousDlqin2yrs==0, select=c(RiskIndex))[,1]))
+lines(density(subset(df, SeriousDlqin2yrs==1, select=c(RiskIndex))[,1]))
 
-boxplot(df$RevolvingUtilizationOfUnsecuredLines ~ df$SeriousDlqin2yrs, outline=FALSE)
-boxplot(df$DebtRatio ~ df$SeriousDlqin2yrs, outline=FALSE)
-boxplot(df$TotalPastDue ~ df$SeriousDlqin2yrs, outline=FALSE)
+##################################################################
+# Ratio of serious dlqs to total dlqs
+##################################################################
 
+df$SeriousDlqRatio <- df$NumberOfTimes90DaysLate / df$TotalPastDue
+df$SeriousDlqRatio <- ifelse(is.nan(df$SeriousDlqRatio), 0, df$SeriousDlqRatio)
+
+# Visualize
+boxplot(df$SeriousDlqRatio ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$SeriousDlqRatio))
+plot(density(subset(df, SeriousDlqin2yrs==0, select=c(SeriousDlqRatio))[,1]))
+lines(density(subset(df, SeriousDlqin2yrs==1, select=c(SeriousDlqRatio))[,1]))
 
 ##################################################################
 # Age Buckets
 ##################################################################
 
-df$AgeBucket <- case_when(df$age < 18 ~ "0-17",
-                          df$age < 22 ~ "18-21",
+# Summarize
+do_summary(df, "age")
+do_summary(subset(df, age < 22), "age")
+
+# If the age is less than 21, then set to 21
+df$age <- ifelse(df$age < 21, 21, df$age)
+
+# Visualize
+boxplot(df$age ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$age))
+plot(density(subset(df, SeriousDlqin2yrs==0, select=c(age))[,1]))
+lines(density(subset(df, SeriousDlqin2yrs==1, select=c(age))[,1]))
+
+# Creating buckets
+df$AgeBucket <- case_when(df$age == 21 ~ "21",
                           df$age < 36 ~ "22-35",
                           df$age < 56 ~ "36-55",
                           df$age < 76 ~ "56-75",
-                          df$age >= 76 ~ "76+")
-
-df$AgeBucket <- as.factor(df$AgeBucket)
+                          df$age < 96 ~ "86-95",
+                          df$age > 95 ~ "96+")
 
 table(df$AgeBucket)
 table(df$AgeBucket, df$SeriousDlqin2yrs)
-round(prop.table(table(df$AgeBucket, df$SeriousDlqin2yrs), 2)*100,2)
 
 ##################################################################
 # Open Credit Lines and Loans
 ##################################################################
 
 do_summary(df, "NumberOfOpenCreditLinesAndLoans")
+
+# Outliers are 1.5x the IQR
+ol <- find_outliers(df$NumberOfOpenCreditLinesAndLoans)[2]
+
+# Anything above the outliers threshold - just set to the threshold
+df$NumberOfOpenCreditLinesAndLoans <- ifelse(df$NumberOfOpenCreditLinesAndLoans > ol, 
+                                             ol, 
+                                             df$NumberOfOpenCreditLinesAndLoans)
+
+# Visualize
 boxplot(df$NumberOfOpenCreditLinesAndLoans ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$NumberOfOpenCreditLinesAndLoans))
+plot(density(subset(df, SeriousDlqin2yrs==0, select=c(NumberOfOpenCreditLinesAndLoans))[,1]))
+lines(density(subset(df, SeriousDlqin2yrs==1, select=c(NumberOfOpenCreditLinesAndLoans))[,1]))
 
-df$CreditLinesBucket <- case_when(df$NumberOfOpenCreditLinesAndLoans <= 0 ~ "0",
-                                  df$NumberOfOpenCreditLinesAndLoans < 5 ~ "1-4",
-                                  df$NumberOfOpenCreditLinesAndLoans < 9 ~ "5-8",
-                                  df$NumberOfOpenCreditLinesAndLoans >= 9 ~ "9+")
-
-df$CreditLinesBucket <- as.factor(df$CreditLinesBucket)
+# Creating buckets
+df$CreditLinesBucket <- case_when(df$NumberOfOpenCreditLinesAndLoans == 0 ~ "0",
+                                  df$NumberOfOpenCreditLinesAndLoans == 1 ~ "1",
+                                  df$NumberOfOpenCreditLinesAndLoans == 2 ~ "2",
+                                  df$NumberOfOpenCreditLinesAndLoans == 3 ~ "3",
+                                  df$NumberOfOpenCreditLinesAndLoans == 4 ~ "4",
+                                  df$NumberOfOpenCreditLinesAndLoans == 5 ~ "5",
+                                  df$NumberOfOpenCreditLinesAndLoans < 11 ~ "6-10",
+                                  df$NumberOfOpenCreditLinesAndLoans > 10 ~ "11+")
 
 round(prop.table(table(df$CreditLinesBucket))*100,2)
 round(prop.table(table(df$CreditLinesBucket, df$SeriousDlqin2yrs),2)*100,2)
@@ -402,16 +341,141 @@ round(prop.table(table(df$CreditLinesBucket, df$SeriousDlqin2yrs),2)*100,2)
 do_summary(df, "NumberRealEstateLoansOrLines")
 boxplot(df$NumberRealEstateLoansOrLines ~ df$SeriousDlqin2yrs, outline=FALSE)
 
-df$RealEstateBucket <- case_when(df$NumberRealEstateLoansOrLines <= 0 ~ "0",
-                                 df$NumberRealEstateLoansOrLines < 2 ~ "1",
-                                 df$NumberRealEstateLoansOrLines < 3 ~ "2",
-                                 df$NumberRealEstateLoansOrLines < 6 ~ "3-5",
-                                 df$NumberRealEstateLoansOrLines >= 6 ~ "6+")
+# Outliers are 1.5x the IQR
+ol <- find_outliers(df$NumberRealEstateLoansOrLines)[2]
 
-df$RealEstateBucket <- as.factor(df$RealEstateBucket)
+# Anything above the outliers threshold - just set to the threshold
+df$NumberRealEstateLoansOrLines <- ifelse(df$NumberRealEstateLoansOrLines > ol, 
+                                          ol, 
+                                          df$NumberRealEstateLoansOrLines)
+
+# Visualize
+boxplot(df$NumberRealEstateLoansOrLines ~ df$SeriousDlqin2yrs, outline=FALSE)
+plot(density(df$NumberRealEstateLoansOrLines))
+plot(density(subset(df, SeriousDlqin2yrs==0, select=c(NumberRealEstateLoansOrLines))[,1]))
+lines(density(subset(df, SeriousDlqin2yrs==1, select=c(NumberRealEstateLoansOrLines))[,1]))
+
+# Creating buckets
+df$RealEstateBucket <- case_when(df$NumberRealEstateLoansOrLines == 0 ~ "0",
+                                 df$NumberRealEstateLoansOrLines == 1 ~ "1",
+                                 df$NumberRealEstateLoansOrLines == 2 ~ "2",
+                                 df$NumberRealEstateLoansOrLines == 3 ~ "3",
+                                 df$NumberRealEstateLoansOrLines == 4 ~ "4",
+                                 df$NumberRealEstateLoansOrLines == 5 ~ "5")
 
 round(prop.table(table(df$RealEstateBucket))*100,2)
 round(prop.table(table(df$RealEstateBucket, df$SeriousDlqin2yrs),2)*100,2)
+
+##################################################################
+# Income
+##################################################################
+
+# There are a lot of NA incomes
+do_summary(df, "MonthlyIncome")
+
+# Outliers are 1.5x the IQR
+ol <- find_outliers(subset(df, is.na(MonthlyIncome)==FALSE, select=c(MonthlyIncome))[,1])[2]
+
+# Anything above the outliers threshold - just set to the threshold
+df$MonthlyIncome <- ifelse(df$MonthlyIncome > ol, ol, df$MonthlyIncome)
+
+# Creating dummy variables
+df$PD30.59Bucket <- as.factor(df$PD30.59Bucket)
+df$PD60.89Bucket <- as.factor(df$PD60.89Bucket)
+df$PD90Bucket <- as.factor(df$PD90Bucket)
+df$PastDueBucket <- as.factor(df$PastDueBucket)
+df$DependentsBucket <- as.factor(df$DependentsBucket)
+df$SeriousDlqFlag <- as.factor(df$SeriousDlqFlag)
+df$AgeBucket <- as.factor(df$AgeBucket)
+df$CreditLinesBucket <- as.factor(df$CreditLinesBucket)
+df$RealEstateBucket <- as.factor(df$RealEstateBucket)
+
+# Create a training dataset
+df.train <- subset(df, is.na(MonthlyIncome)==FALSE)
+# Creating a dataset of only the observations with n/a incomes
+df.na <- subset(df, is.na(MonthlyIncome))
+
+# Doing some visualization
+boxplot(df.train$MonthlyIncome ~ df.train$AgeBucket, outline=FALSE)
+boxplot(df.train$MonthlyIncome ~ df.train$PastDueBucket, outline=FALSE)
+boxplot(df.train$MonthlyIncome ~ df.train$PD90Bucket, outline=FALSE)
+boxplot(df.train$MonthlyIncome ~ df.train$SeriousDlqFlag, outline=FALSE)
+boxplot(df.train$MonthlyIncome ~ df.train$DependentsBucket, outline=FALSE)
+boxplot(df.train$MonthlyIncome ~ df.train$RealEstateBucket, outline=FALSE)
+boxplot(df.train$MonthlyIncome ~ df.train$CreditLinesBucket, outline=FALSE)
+
+# Formula to use for the regression model
+f <- MonthlyIncome ~ age + DependentsBucket + SeriousDlqFlag + RealEstateBucket + CreditLinesBucket
+
+# Repeat the steps below until a desired fit is acheived
+#------------------------------------------------------------#
+# Fit the linear model
+fit <- lm(formula=f, data=df.train) 
+summary(fit)
+
+# Map the residuals values to the test dataset
+df.train$resid <- resid(fit)
+
+# Visualize the residuals
+plot(density(df.train$resid))
+
+# Find the value of 2x the standard deviation of the residuals
+sd2 <- 2*sd(df.train$resid) 
+
+# Flagging hte outliers - those obs whose residuals are more than 2x stdv
+df.train$outs <- ifelse(abs(df.train$resid) > sd2, 1, 0)
+table(df.train$outs)
+
+# Removing the outliers
+df.train <- subset(df.train, outs==0) 
+
+# Remove the residuals
+df.train <- subset(df.train, select=-c(outs, resid))
+#------------------------------------------------------------#
+
+# Save the modeled income model
+save(fit, file="C://Users/g557428/Projects/seis736_ml_project/models/modeledincome.rdata")
+#load(file="C://Users/g557428/Projects/seis736_ml_project/models/modeledincome.rdata")
+
+# Make the predictions on the n/a only dataset
+df.na$ModeledIncome <- predict(fit, df.na)
+
+# If below 0, set to 0
+df.na$ModeledIncome <- ifelse(df.na$ModeledIncome < 0, 0, df.na$ModeledIncome)
+
+# Summarize the predictions
+summary(df.na$ModeledIncome)
+
+# Visualize modeled income compared to monthlyincome
+plot(density(df.na$ModeledIncome), col="red")
+lines(density(df.train$MonthlyIncome), col="blue")
+legend("topright", legend=c("Modeled", "Actual"), col=c("red","blue"), lty=1)
+
+# Make the predictions on the actual dataset
+df$ModeledIncome <- predict(fit, df)
+df$ModeledIncome <- ifelse(df$ModeledIncome < 0, 0, df$ModeledIncome)
+df$MonthlyIncome <- ifelse(is.na(df$MonthlyIncome), df$ModeledIncome, df$MonthlyIncome)
+
+# Summarize the data
+summary(df$MonthlyIncome)
+summary(df$ModeledIncome)
+
+# View the head and tail
+head(subset(df, select=c(MonthlyIncome,ModeledIncome)), n=20)
+tail(subset(df, select=c(MonthlyIncome,ModeledIncome)), n=20)
+
+# Cleanup
+rm(df.train, fit, sd2, df.na)
+
+# Creating logical income buckets
+df$IncomeBucket <- case_when(df$MonthlyIncome < 1000 ~ "<1000",
+                             df$MonthlyIncome < 2000 ~ "1000-1999",
+                             df$MonthlyIncome < 4000 ~ "2000-3999",
+                             df$MonthlyIncome < 8000 ~ "4000-7999",
+                             df$MonthlyIncome >= 8000 ~ "8000+")
+
+# Visualize
+boxplot(df$MonthlyIncome ~ df$IncomeBucket, outline=FALSE)
 
 ##################################################################
 # Write to CSV

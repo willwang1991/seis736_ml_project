@@ -22,6 +22,7 @@ df$NumberOfTime60.89DaysPastDueNotWorse <- as.vector(scale(df$NumberOfTime60.89D
 df$NumberOfDependents <- as.vector(scale(df$NumberOfDependents))
 df$TotalPastDue <- as.vector(scale(df$TotalPastDue))
 df$RiskIndex <- as.vector(scale(df$RiskIndex))
+df$SeriousDlqRatio <- as.vector(scale(df$SeriousDlqRatio))
 
 # Create dummy variables for the non-numeric features
 df$PD30.59Bucket <- as.factor(df$PD30.59Bucket)
@@ -41,8 +42,7 @@ table(df$SeriousDlqin2yrs)
 # Let's get a sub-set of 0s that adequately represents the population
 df.ones <- subset(df, SeriousDlqin2yrs == "1")
 df.zeros <- subset(df, SeriousDlqin2yrs == "0")
-#set.seed(19861005)
-set.seed(20140831)
+set.seed(19861005)
 df.zeros <- df.zeros[sample(1:nrow(df.zeros), 10026, replace=FALSE),]
 df.new <- rbind(df.ones, df.zeros)
 
@@ -56,7 +56,7 @@ rm(df.ones, df.zeros)
 df.new <- df.new[sample(1:nrow(df.new)),]
 
 # Create a test dataset and a validation dataset
-index <- sample(1:nrow(df.new), size=nrow(df.new)*0.6, replace=FALSE)
+index <- sample(1:nrow(df.new), size=nrow(df.new)*0.6667, replace=FALSE)
 
 df.train <- df.new[index,]
 df.test <- df.new[-index,]
@@ -78,7 +78,7 @@ f <- SeriousDlqin2yrs ~
   age +
   #NumberOfTime30.59DaysPastDueNotWorse +
   DebtRatio +
-  #MonthlyIncome +
+  MonthlyIncome +
   ModeledIncome +
   #NumberOfOpenCreditLinesAndLoans +
   #NumberOfTimes90DaysLate +
@@ -91,8 +91,9 @@ f <- SeriousDlqin2yrs ~
   TotalPastDue +
   PastDueBucket +
   DependentsBucket +
-  #IncomeBucket +
+  IncomeBucket +
   RiskIndex +
+  SeriousDlqRatio +
   SeriousDlqFlag +
   AgeBucket +
   CreditLinesBucket +
@@ -119,7 +120,7 @@ table(df.train$outs)
 df.train <- subset(df.train, outs==0) 
 
 # Remove the residuals
-df.train <- df.train[,-c(25,26)]
+df.train <- df.train[,-c(26,27)]
 #------------------------------------------------------------#
 
 # Make sure you still have some data
@@ -179,7 +180,7 @@ round_prob <- function(x,p) {
 }
 
 # Extract the predictions and round based on the probability
-r <- unlist(lapply(pred[,1], FUN=function(x2) round_prob(x2, 0.5)))
+r <- unlist(lapply(pred[,2], FUN=function(x2) round_prob(x2, 0.5)))
 
 # Make the confusion matrix
 cm <- table(df.test$SeriousDlqin2yrs, r)
