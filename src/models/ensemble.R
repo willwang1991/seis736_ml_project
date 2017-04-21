@@ -4,7 +4,7 @@
 
 library("glmnet")
 library("e1071")
-library("nnet")
+library("neuralnet")
 
 # Setting the seed
 set.seed(19861005)
@@ -169,24 +169,67 @@ round(prop.table(table(df.test$SeriousDlqin2yrs)),2)
 ################################################################
 
 # Setting the x and y
-x <- df.train[ ,2:15]
-y <- df.train[ ,1]
+#x <- df.train[ ,2:15]
+#y <- df.train[ ,1]
+
+df.train_svm <- df.train[ ,1:15]
+
+# K-Means to select representative points
+km <- kmeans(x=df.train_svm[,2:15], centers=50, iter.max=100)
+
+# Distribution of clusters
+table(km$cluster)
+
+# Assign clusters back to the dataframe
+df.train_svm$clusters <- km$cluster
+
+# For each cluster, get a few representative points
+for(c in unique(km$cluster)) {
+  # Subset the x dataframe
+  x.sub <- subset(df.train_svm, clusters==c)
+  # Random sample of 10 observations from the subsetted dataframe
+  if (exists('c.samp')) {
+    c.samp <- rbind(c.samp, x.sub[sample(1:nrow(x.sub), 10, replace=FALSE),])
+  } else {
+    c.samp <- x.sub[sample(1:nrow(x.sub), 10, replace=FALSE),]
+  }
+}
+
+head(c.samp)
+
+# Setting the x and y from the kmeans samples
+x <- c.samp[ ,2:15]
+y <- c.samp[ ,1]
+
+# Confirm the distributions are still even
+table(y)
+
+# Cleanup
+rm(x.sub, c.samp, df.train_svm)
 
 # Setting the regularization parameters
-gamma <- 0.01 # This is the kernal regularization. High gamma = high error, low gamma = low error
-cost <- 10 # High cost = low error, low cost = high error
-epsilon <- 1
-degree <- 2
-coef <- 7
+gamma <- c(0.0001, 0.001, 0.01, 0.1, 0, 1, 1.1, 1.01, 1.001, 1.0001)
+cost <- 10^(-1:2) 
+#epsilon <- 1
+#degree <- 2
+#coef <- 7
 
 # Fit the SVM model
-fit <- e1071::svm(x=x, y=y, type="C-classification", kernel="poly", gamma=gamma, cost=cost, epsilon=epsilon,
-                  degree=degree, coef0=coef, probability=TRUE, scale=FALSE)
+#fit <- e1071::svm(x=x, y=y, type="C-classification", kernel="radial", gamma=gamma, cost=cost, epsilon=epsilon,
+#                  degree=degree, coef0=coef, probability=TRUE, scale=FALSE)
+
+fit <- e1071::tune(svm, train.x=x, train.y=as.factor(y), type="C-classification", kernel="radial", 
+                   ranges=c(gamma=gamma, costs=cost), tunecontrol=tune.control(cross=10), probability=TRUE, scale=FALSE)
 
 #load(file="C://Users/g557428/Projects/seis736_ml_project/models/svm.rdata")
 
 # Summarize the SVM model
 summary(fit)
+fit$best.model$gamma
+fit$best.model$cost
+
+fit <- e1071::svm(x=x, y=y, type="C-classification", kernel="radial", gamma=fit$best.model$gamma, cost=fit$best.model$cost,
+                  probability=TRUE, scale=FALSE)
 
 # Make the predictions
 pred_svm <- predict(fit, df.test[,2:15], decision.values=TRUE, probability=TRUE)
@@ -275,50 +318,6 @@ rm(fpr1, tpr1, fpr2, tpr2, ol.index, cutoff.1, cutoff.2, sv, out, out.ones, out.
 
 # Save the model
 save(fit, file="C://Users/g557428/Projects/seis736_ml_project/models/svm.rdata")
-
-################################################################
-# PCA - Principal Component Analysis
-################################################################
-
-# Create a separate dataset for PCA
-df.pca <- df.new[,]
-
-# Columns on which we will apply PCA
-colnames(df.pca)
-pcols <- c(2:12,14:16)
-
-# Apply PCA
-x.pca <- prcomp(df.pca[,pcols], center=FALSE, scale.=FALSE)
-summary(x.pca)
-plot(x.pca, type="l")
-
-# Create a dataframe of the selected PCA columns
-x.pca <- data.frame(x.pca$x)
-x.pca <- x.pca[,1:4]
-
-# Make the final dataframe
-df.pca <- cbind(df.pca[,-pcols], x.pca)
-
-colnames(df.pca)
-
-# Cleanup
-rm(x.pca, pcols)
-
-################################################################
-# create train & test datasets for Logistic Regression
-################################################################
-
-# Frequency of the target attribute
-table(df.pca$SeriousDlqin2yrs)
-
-# Create the test and train dataframes
-df.train <- df.pca[index,]
-df.test <- df.pca[-index,]
-
-# Confirm distribution of the target attribute in both datasets is ~ the same
-table(df.train$SeriousDlqin2yrs)
-round(prop.table(table(df.train$SeriousDlqin2yrs)),2)
-round(prop.table(table(df.test$SeriousDlqin2yrs)),2)
 
 ################################################################
 # GLMNET Logistic Model
@@ -446,41 +445,8 @@ rm(acc, cm, f1, fpr, fpr1, fpr2, tpr, tpr1, tpr2, roc, fit)
 # Neural Network Model
 ################################################################
 
-# Parameter tuning
-size <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20) # Number of units in hidden layer
-maxit <- c(200) # Maximum number of iterations
-rang <- 0.5
-decay <- 10^seq(-3, 0, length = 10) # Parameter for weight decay
-params <- data.frame(expand.grid(size=size, maxit=maxit, decay=decay)) # Creating the parameter search grid
-
-# Loop through the search grid
-result <- foreach(i = 1:nrow(params), .combine = rbind) %do% {
-  
-  # Train the model
-  fit <- nnet(x=df.train[,-1], y=df.train[,1], size=params[i,]$size, maxit=params[i,]$maxit,
-              decay=params[i,]$decay, MaxNWts=4000)
-  
-  # Make the predictions
-  pred_nn <- predict(fit, df.test[,-1], prob=TRUE)
-  
-  # Create the confusion matrix
-  cm <- table(df.test[,1], ifelse(pred_nn > 0.5, 1, 0))
-  acc <- tryCatch(round(sum(diag(cm))/sum(cm),2), error=function(x) 0)
-  tpr <- tryCatch(round(cm[2,2]/sum(cm[2,]),2), error=function(x) 0)
-  fpr <- tryCatch(round(cm[1,2]/sum(cm[,2]),2), error=function(x) 0)
-  f1 <- tryCatch(round((2*tpr*fpr)/(tpr+fpr),2), error=function(x) 0)
-  
-  # Dataframe metrics along with alphas
-  data.frame(size=params[i,]$size, maxit=params[i,]$maxit, decay=params[i,]$decay, 
-             acc=acc, tpr=tpr, fpr=fpr, f1=f1)
-}
-
-# Write the params to csv
-print(result)
-write.csv(x=result, file="C://Users/g557428/Projects/seis736_ml_project/data/processed/nn_params.csv", row.names=FALSE)
-
-# Train the model using the optimized parameters
-fit <- nnet(x=df.train[,-1], y=df.train[,1], size=100, maxit=200, MaxNWts=10000)
+fit <- neuralnet(formula=SeriousDlqin2yrs~RevolvingUtilizationOfUnsecuredLines+DebtRatio+
+                   RiskIndex, data=df.train, hidden=c(5,3))
 
 #load(file="C://Users/g557428/Projects/seis736_ml_project/models/nnet.rdata")
 

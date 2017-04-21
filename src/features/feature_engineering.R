@@ -373,6 +373,8 @@ round(prop.table(table(df$RealEstateBucket, df$SeriousDlqin2yrs),2)*100,2)
 # There are a lot of NA incomes
 do_summary(df, "MonthlyIncome")
 
+boxplot(df$MonthlyIncome, outline=FALSE)
+
 # Outliers are 1.5x the IQR
 ol <- find_outliers(subset(df, is.na(MonthlyIncome)==FALSE, select=c(MonthlyIncome))[,1])[2]
 
