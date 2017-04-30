@@ -1,0 +1,71 @@
+p= path;
+path(p,'C:\tmp');
+data = readtable('cs-modified.csv','Delimiter',',','ReadVariableNames',true);
+RevolvingUtilizationOfUnsecuredLines = table2array(data(:,2));
+age = table2array(data(:,3));
+NumberOfTime30_59DaysPastDueNotWorse = table2array(data(:,4));
+DebtRatio = table2array(data(:,5));
+MonthlyIncome = table2array(data(:,6));
+NumberOfOpenCreditLinesAndLoans = table2array(data(:,7));
+NumberOfTimes90DaysLate = table2array(data(:,8));
+NumberRealEstateLoansOrLines = table2array(data(:,9));
+NumberOfTime60_89DaysPastDueNotWorse = table2array(data(:,10));
+NumberOfDependents = table2array(data(:,11));
+TotalPastDue = table2array(data(:,15));
+RiskIndex = table2array(data(:,19));
+SeriousDlqRatio = table2array(data(:,20));
+ModeledIncome = table2array(data(:,24));
+
+PD30_59Bucket = table2array(data(:,12));
+PD60_89Bucket = table2array(data(:,13));
+PD90Bucket = table2array(data(:,14));
+PastDueBucket = table2array(data(:,16));
+DependentsBucket = table2array(data(:,17)); 
+IncomeBucket = table2array(data(:,25));
+SeriousDlqFlag = table2array(data(:,18));
+AgeBucket = table2array(data(:,21));
+CreditLinesBucket = table2array(data(:,22));
+RealEstateBucket = table2array(data(:,23));
+
+PD30_59Bucket1 = str2double(cellstr(PD30_59Bucket));
+PD60_89Bucket1 = str2double(cellstr(PD60_89Bucket));
+PD90Bucket1 = str2double(cellstr(PD90Bucket));
+PastDueBucket1 = str2double(cellstr(PastDueBucket));
+DependentsBucket1 = str2double(cellstr(DependentsBucket));
+IncomeBucket1 = str2double(cellstr(IncomeBucket));
+SeriousDlqFlag1 = str2double(cellstr(SeriousDlqFlag));
+AgeBucket1 = str2double(cellstr(AgeBucket));
+CreditLinesBucket1 = str2double(cellstr(CreditLinesBucket));
+RealEstateBucket1 = str2double(cellstr(RealEstateBucket));
+
+SeriousDlqin2yrs = table2array(data(:,1));
+
+SeriousDlqin2yrs1 = reshape(SeriousDlqin2yrs, [1,150000]);
+[train,val,test] = dividerand(SeriousDlqin2yrs1,0.5,0.5,0);
+
+Y = SeriousDlqin2yrs;
+X = [RevolvingUtilizationOfUnsecuredLines,age,NumberOfTime30_59DaysPastDueNotWorse,DebtRatio,MonthlyIncome,ModeledIncome,NumberOfOpenCreditLinesAndLoans,NumberOfTimes90DaysLate,NumberRealEstateLoansOrLines,NumberOfTime60_89DaysPastDueNotWorse,NumberOfDependents, TotalPastDue,RiskIndex,SeriousDlqRatio,SeriousDlqFlag1];
+
+X= zscore(X);
+
+mdl = fitglm(X,Y,'distr','binomial','link','logit');
+[b, fitinfo] = lassoglm(X, Y, 'binomial', 'NumLambda', 25, 'CV', 10);
+lassoPlot(b,fitinfo,'PlotType', 'Lambda', 'XScale', 'log');
+
+Labels = double(predict(mdl, X) >= 0.5);
+CFM = confusionmat(Y, Labels)
+scores = mdl.Fitted.Probability;
+[xpos, ypos, T, AUC] = perfcurve(Y, scores, 1);
+figure, plot(xpos, ypos)
+xlim([-0.05 1.05]), ylim([-0.05 1.05])
+xlabel('\bf FP rate'), ylabel('\bf TP rate')
+title('\bf ROC for Classification by Logit')
+
+mdl.LogLikelihood
+B = mdl.Coefficients{:, 1};
+Bstr = num2str(B);
+Zstr = [Bstr(1,:) '+x*' Bstr(2,:)];
+syms x,
+figure, ezplot(['1/(1+exp(-(' Zstr ')))'], [-10 103])
+hold on, gscatter(X(:, 1), Y, Y, 'br', '..', 25, 'off')
+hold off, grid on; ylim([-0.1, 1.1])
